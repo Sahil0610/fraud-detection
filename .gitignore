@@ -1,0 +1,19 @@
+# Data files (too large for GitHub)
+data/
+*.csv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables / credentials
+.env
+*.env
+
+# VS Code settings
+.vscode/
+
+# Python virtual environment
+venv/
+env/
