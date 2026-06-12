@@ -78,3 +78,7 @@ SELECT @@VERSION;
 
 SELECT * FROM accounts;
 SELECT * FROM transactions;
+SELECT * FROM fraud_labels;
+SELECT * FROM fraud_alerts;
+
+
