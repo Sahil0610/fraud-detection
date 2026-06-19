@@ -1,4 +1,4 @@
--- Create Project Database
+git-- Create Project Database
 CREATE DATABASE FraudDetection;
 GO
 

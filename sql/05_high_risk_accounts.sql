@@ -1,3 +1,10 @@
+-- ================================================
+-- File    : 05_high_risk_accounts.sql
+-- Author  : Sahil Shahbuddin
+-- Date    : 2026
+-- Purpose : sender accounts are repeat fraud offenders
+-- ================================================
+
 USE FraudDetection;
 GO
 
