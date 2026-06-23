@@ -88,51 +88,97 @@ Source: https://www.kaggle.com/datasets/ealaxi/paysim1
 ## Machine Learning — Fraud Detection Model
 
 ### Pipeline
-SQL Server → Python (feature engineering) → train/test split → Logistic Regression
+SQL Server → Python (feature engineering) → 3 models trained and compared
 
 ### Feature Engineering
-Built directly from SQL findings:
+Built directly from SQL analytics findings:
 
-| Feature | Derived From |
-|---------|-------------|
-| `hour_of_day`, `is_night` | Query 6 — 3-4 AM fraud spike |
-| `is_full_drain` | Query 4 — 100% precision rule |
-| `balance_diff_orig`, `balance_diff_dest` | Balance change patterns |
-| `error_balance_orig`, `error_balance_dest` | Mismatch between expected/actual balance |
-| `type_TRANSFER`, `type_CASH_OUT`, etc. | One-hot encoded transaction type |
+| Feature | Source |
+|---------|--------|
+| `hour_of_day`, `is_night` | Query 6 — 3-4 AM fraud spike (22% rate) |
+| `is_full_drain` | Query 4 — 100% precision SQL rule |
+| `balance_diff_orig/dest` | Balance change pattern detection |
+| `error_balance_orig/dest` | Mismatch between expected and actual balance |
+| `type_*` | One-hot encoded transaction type (5 categories) |
 
 ### Handling Class Imbalance
-Fraud is only 0.129% of transactions. Used `class_weight='balanced'` in
-Logistic Regression rather than naive accuracy optimization, which would
-otherwise default to predicting "not fraud" every time.
+Fraud = 0.129% of transactions. Used `class_weight='balanced'`
+across all models — prevents the model defaulting to "predict legit
+every time" which would give 99.87% accuracy but catch zero fraud.
 
-### Baseline Model Results — Logistic Regression
+### Model Comparison Results
 
-| Metric | Score |
-|--------|-------|
-| Accuracy | 99.88% |
-| Precision | 51.34% |
-| **Recall** | **98.97%** |
-| F1 Score | 0.676 |
+| Metric | Logistic Regression | RF Full | RF Realistic |
+|--------|--------------------|---------| -------------|
+| Accuracy | 99.87% | 100.00% | 100.00% |
+| Precision | 49.35% | 100.00% | **99.94%** |
+| Recall | 99.21% | 99.45% | **99.45%** |
+| F1 Score | 0.659 | 0.997 | **0.997** |
+| False alarms | ~1,541 | ~15 | ~1 |
+| Missed fraud | ~17 | ~2 | ~2 |
 
-**Confusion Matrix (test set):**
-| | Predicted Legit | Predicted Fraud |
-|---|---|---|
-| **Actual Legit** | 1,269,340 | 1,541 |
-| **Actual Fraud** | 17 | 1,626 |
+### Key ML Findings
 
-> Only 17 fraud cases out of 1,643 were missed — a 98.97% catch rate,
-> prioritizing recall over precision since missed fraud costs far more
-> than a manual review false alarm.
+1. **Logistic Regression** — strong recall (99.21%) but poor precision
+   (49.35%), meaning too many false alarms for practical deployment.
+
+2. **Random Forest Full** — near-perfect results, but feature importance
+   analysis revealed `is_full_drain` was responsible for 37.7% of all
+   decisions — a single SQL-derived rule dominating the model.
+
+3. **Random Forest Realistic** — removed `is_full_drain` to test true
+   model robustness. Results barely changed (99.94% precision, 99.45%
+   recall), proving the model had genuinely learned fraud patterns
+   across multiple features independently.
+
+4. **Feature importance insight** — after removing `is_full_drain`,
+   importance redistributed naturally to `error_balance_orig` (27.5%)
+   and `balance_diff_orig` (24.3%), confirming the model captures the
+   underlying account-draining pattern without relying on any single
+   feature.
+
+### Recommended Model
+**Random Forest Realistic** — robust, generalizable, not dependent on
+any single dominant feature. Catches 99.45% of fraud with a 99.94%
+precision rate.
+
+### Saved Models
+| File | Description |
+|------|-------------|
+| `models/logistic_regression.pkl` | Baseline model |
+| `models/random_forest_full.pkl` | Full feature set |
+| `models/random_forest_realistic.pkl` | Production-ready model |
+
+### Complete Final Summary
+
+FRAUD DETECTION PROJECT — FINAL ML RESULTS
+
+6,362,620 transactions analyzed
+8,213 confirmed fraud cases (0.129%)
+
+┌─────────────────────┬──────────────┬──────────────┬──────────────┐
+│ Metric              │ Logistic Reg │ RF Full      │ RF Realistic │
+├─────────────────────┼──────────────┼──────────────┼──────────────┤
+│ Accuracy            │ 99.87%       │ 100.00%      │ 100.00%      │
+│ Precision           │ 49.35%       │ 100.00%      │ 99.94%       │
+│ Recall              │ 99.21%       │ 99.45%       │ 99.45%       │
+│ F1 Score            │ 0.659        │ 0.997        │ 0.997        │
+│ False alarms        │ ~1,541       │ ~15          │ ~1           │
+│ Missed fraud        │ ~17          │ ~2           │ ~2           │
+└─────────────────────┴──────────────┴──────────────┴──────────────┘
+
+Recommended model: RF Realistic
+Why: Near-identical performance to full model but doesn't rely on
+     a single dominant feature, making it more robust and generalizable
 
 ## 🗺 Roadmap
-
 - [x] Data exploration
 - [x] Database schema design
 - [x] Data loading into SQL Server
 - [x] SQL analytics & fraud queries
 - [x] Rule-based fraud alert engine
 - [x] Baseline ML model (Logistic Regression)
-- [ ] Stronger ML model (Random Forest comparison)
+- [x] Advanced ML model (Random Forest — 3 variants compared)
+- [x] Feature importance analysis & model robustness testing
 - [ ] Dashboard / visualization
-- [ ] Final GitHub polish
+- [ ] Final GitHub portfolio polish

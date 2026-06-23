@@ -7,6 +7,7 @@ from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, 
     f1_score, confusion_matrix, classification_report
 )
+from sklearn.ensemble import RandomForestClassifier
 
 DRIVER = '{ODBC Driver 17 for SQL Server}'
 SERVER_NAME = 'DESKTOP-JMUSLO6'
@@ -150,3 +151,129 @@ print(f"Actual Fraud      {cm[1][0]:>15,}   {cm[1][1]:>15,}")
 
 print(f"\nFull Classification Report:")
 print(classification_report(y_test, y_pred, target_names=['Legit', 'Fraud']))
+
+# ============================================================
+# Train Random Forest Model
+# ============================================================
+print("\nTraining Random Forest model...")
+
+rf_model = RandomForestClassifier(
+    n_estimators = 100,        # number of trees in the forest
+    class_weight = 'balanced', # same imbalance fix as before
+    max_depth = 10,            # limits how complex each tree can get
+    random_state = 42,
+    n_jobs = -1                 # use all CPU cores to speed up training
+)
+
+rf_model.fit(X_train, y_train)
+print("Random Forest trained!")
+
+# ============================================================
+# Evaluate Random Forest
+# ============================================================
+print("\nEvaluating Random Forest on test set...")
+
+y_pred_rf = rf_model.predict(X_test)
+accuracy_rf = accuracy_score(y_test, y_pred_rf)
+precision_rf = precision_score(y_test, y_pred_rf)
+recall_rf = recall_score(y_test, y_pred_rf)
+f1_rf = f1_score(y_test, y_pred_rf)
+
+print(f"\nAccuracy:  {accuracy_rf:.4f}  ({accuracy_rf*100:.2f}%)")
+print(f"Precision: {precision_rf:.4f}  ({precision_rf*100:.2f}%)")
+print(f"Recall:    {recall_rf:.4f}  ({recall_rf*100:.2f}%)")
+print(f"F1 Score:  {f1_rf:.4f}")
+
+cm_rf = confusion_matrix(y_test, y_pred_rf)
+print(f"\nConfusion Matrix:")
+print(f"                  Predicted Legit   Predicted Fraud")
+print(f"Actual Legit      {cm_rf[0][0]:>15,}   {cm_rf[0][1]:>15,}")
+print(f"Actual Fraud      {cm_rf[1][0]:>15,}   {cm_rf[1][1]:>15,}")
+
+# ============================================================
+# Feature Importance — which features is the model relying on?
+# ============================================================
+print("\nFeature Importances (Random Forest):")
+
+importances = pd.DataFrame({
+    'feature': X_train.columns,
+    'importance': rf_model.feature_importances_
+}).sort_values('importance', ascending=False)
+
+print(importances.to_string(index=False))
+
+# ============================================================
+# Model B — Realistic Random Forest (no is_full_drain)
+# ============================================================
+print("\nTraining Realistic Random Forest (without is_full_drain)...")
+
+# Drop the near-perfect predictor
+X_train_realistic = X_train.drop(columns=['is_full_drain'])
+X_test_realistic  = X_test.drop(columns=['is_full_drain'])
+
+rf_realistic = RandomForestClassifier(
+    n_estimators=100,
+    class_weight='balanced',
+    max_depth=10,
+    random_state=42,
+    n_jobs=-1
+)
+
+rf_realistic.fit(X_train_realistic, y_train)
+print("Realistic model trained!")
+
+# Evaluate
+y_pred_realistic = rf_realistic.predict(X_test_realistic)
+
+accuracy_r  = accuracy_score(y_test, y_pred_realistic)
+precision_r = precision_score(y_test, y_pred_realistic)
+recall_r    = recall_score(y_test, y_pred_realistic)
+f1_r        = f1_score(y_test, y_pred_realistic)
+
+print(f"\nAccuracy:  {accuracy_r:.4f}  ({accuracy_r*100:.2f}%)")
+print(f"Precision: {precision_r:.4f}  ({precision_r*100:.2f}%)")
+print(f"Recall:    {recall_r:.4f}  ({recall_r*100:.2f}%)")
+print(f"F1 Score:  {f1_r:.4f}")
+
+cm_r = confusion_matrix(y_test, y_pred_realistic)
+print(f"\nConfusion Matrix:")
+print(f"                  Predicted Legit   Predicted Fraud")
+print(f"Actual Legit      {cm_r[0][0]:>15,}   {cm_r[0][1]:>15,}")
+print(f"Actual Fraud      {cm_r[1][0]:>15,}   {cm_r[1][1]:>15,}")
+
+# ============================================================
+# Side by Side Comparison — All 3 Models
+# ============================================================
+print("\n" + "="*65)
+print("MODEL COMPARISON SUMMARY")
+print("="*65)
+print(f"{'Metric':<25} {'Logistic Reg':>13} {'RF Full':>13} {'RF Realistic':>13}")
+print("-"*65)
+print(f"{'Accuracy':<25} {accuracy*100:>12.2f}% {accuracy_rf*100:>12.2f}% {accuracy_r*100:>12.2f}%")
+print(f"{'Precision':<25} {precision*100:>12.2f}% {precision_rf*100:>12.2f}% {precision_r*100:>12.2f}%")
+print(f"{'Recall':<25} {recall*100:>12.2f}% {recall_rf*100:>12.2f}% {recall_r*100:>12.2f}%")
+print(f"{'F1 Score':<25} {f1:>13.4f} {f1_rf:>13.4f} {f1_r:>13.4f}")
+print("="*65)   
+
+import joblib
+
+# ============================================================
+# Save Models
+# ============================================================
+print("\nSaving models...")
+joblib.dump(model, '../models/logistic_regression.pkl')
+joblib.dump(rf_model, '../models/random_forest_full.pkl')
+joblib.dump(rf_realistic,'../models/random_forest_realistic.pkl')
+print("All 3 models saved to /models/")
+
+# ============================================================
+# Feature Importance — Realistic Model
+# ============================================================
+print("\nFeature Importances (Realistic Random Forest):")
+
+importances_r = pd.DataFrame({
+    'feature'   : X_train_realistic.columns,
+    'importance': rf_realistic.feature_importances_
+}).sort_values('importance', ascending=False)
+
+print(importances_r.to_string(index=False))
